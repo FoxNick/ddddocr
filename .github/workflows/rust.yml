@@ -27,7 +27,8 @@ jobs:
 
       # 3. 安装 Android NDK
       - name: Install Android NDK
-        uses: jimhw/ndk-action@v1
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
         with:
           ndk-version: "25b"
 
