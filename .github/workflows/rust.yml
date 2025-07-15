@@ -38,7 +38,7 @@ jobs:
           mkdir -p .cargo
           cat <<EOF > .cargo/config.toml
           [target.${{ matrix.target }}]
-          CC_${{ matrix.target }} = "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.target }}21-clang"
+          linker = "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.target }}21-clang"
           EOF
 
       # 5. 构建安卓可执行文件 ★ 核心修改点
