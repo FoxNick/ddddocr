@@ -28,9 +28,10 @@ jobs:
 
       # 3. 安装 Android NDK（cargo-ndk 依赖）
       - name: Install Android NDK
-        uses: jimhw/ndk-action@v1
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
         with:
-          ndk-version: "25b"  # 推荐稳定版本[1](@ref)
+          ndk-version: r25b  # 推荐稳定版本[1](@ref)
 
       # 4. 安装 cargo-ndk（核心步骤）
       - name: Install cargo-ndk
