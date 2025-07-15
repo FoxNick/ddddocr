@@ -1,0 +1,72 @@
+name: Rust Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: 
+          - armv7-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+          - x86_64-linux-android
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 Rust 和安卓目标
+      - name: Setup Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          rustup target add ${{ matrix.target }}
+
+      # 3. 安装 Android NDK
+      - name: Install Android NDK
+        uses: jimhw/ndk-action@v1
+        with:
+          ndk-version: "25b"
+
+      # 4. 配置 NDK 链接器
+      - name: Configure linker
+        run: |
+          mkdir -p .cargo
+          cat <<EOF > .cargo/config.toml
+          [target.${{ matrix.target }}]
+          linker = "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/${matrix.target//-/_}-clang"
+          EOF
+
+      # 5. 构建安卓可执行文件 ★ 核心修改点
+      - name: Build Android executable
+        run: cargo build --target ${{ matrix.target }} --release --bins
+
+      # 6. 归档可执行文件 ★ 核心修改点
+      - name: Package artifacts
+        run: |
+          # 创建平台专属目录
+          mkdir -p artifacts/${{ matrix.target }}
+          
+          # 查找并复制所有安卓可执行文件
+          find target/${{ matrix.target }}/release/ \
+            -maxdepth 1 \
+            -type f \
+            -executable \
+            ! -name "*.*" \
+            -exec cp {} artifacts/${{ matrix.target }} \;
+          
+          # 创建压缩包
+          tar -czvf ${{ matrix.target }}_binaries.tar.gz artifacts/${{ matrix.target }}
+
+      # 7. 上传制品
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.target }}-binaries
+          path: ${{ matrix.target }}_binaries.tar.gz
