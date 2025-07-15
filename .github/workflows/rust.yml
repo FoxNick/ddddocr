@@ -9,10 +9,10 @@ jobs:
     strategy:
       matrix:
         target: 
-          - armv7-linux-androideabi
-          - aarch64-linux-android
-          - i686-linux-android
-          - x86_64-linux-android
+          - armeabi-v7a   # ARMv7 (兼容 armv7-linux-androideabi)
+          - arm64-v8a     # ARM64 (兼容 aarch64-linux-android)
+          - x86           # x86 (32位)
+          - x86_64        # x86_64
     steps:
       # 1. 检出代码
       - name: Checkout code
@@ -23,48 +23,34 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
-          rustup target add ${{ matrix.target }}
+          # 安装标准安卓目标（cargo-ndk 需此基础）
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
-      # 3. 安装 Android NDK
+      # 3. 安装 Android NDK（cargo-ndk 依赖）
       - name: Install Android NDK
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
+        uses: jimhw/ndk-action@v1
         with:
-          ndk-version: r25b
+          ndk-version: "25b"  # 推荐稳定版本[1](@ref)
 
-      # 4. 配置 NDK 链接器
-      - name: Configure linker
-        run: |
-          mkdir -p .cargo
-          cat <<EOF > .cargo/config.toml
-          [target.${{ matrix.target }}]
-          linker = "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.target }}21-clang"
-          EOF
+      # 4. 安装 cargo-ndk（核心步骤）
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
 
-      # 5. 构建安卓可执行文件 ★ 核心修改点
+      # 5. 编译安卓可执行文件
       - name: Build Android executable
-        run: cargo build --target ${{ matrix.target }} --release --bins
+        run: |
+          # 使用 cargo-ndk 自动处理 NDK 路径和工具链
+          cargo ndk -t ${{ matrix.target }} -o ./artifacts build --release --bins
 
-      # 6. 归档可执行文件 ★ 核心修改点
+      # 6. 归档可执行文件
       - name: Package artifacts
         run: |
-          # 创建平台专属目录
-          mkdir -p artifacts/${{ matrix.target }}
-          
-          # 查找并复制所有安卓可执行文件
-          find target/${{ matrix.target }}/release/ \
-            -maxdepth 1 \
-            -type f \
-            -executable \
-            ! -name "*.*" \
-            -exec cp {} artifacts/${{ matrix.target }} \;
-          
-          # 创建压缩包
-          tar -czvf ${{ matrix.target }}_binaries.tar.gz artifacts/${{ matrix.target }}
+          cd artifacts
+          tar -czvf ${{ matrix.target }}_binaries.tar.gz ${{ matrix.target }}/*
 
       # 7. 上传制品
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-${{ matrix.target }}-binaries
-          path: ${{ matrix.target }}_binaries.tar.gz
+          path: artifacts/${{ matrix.target }}_binaries.tar.gz
