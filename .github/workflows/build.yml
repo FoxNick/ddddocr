@@ -37,7 +37,7 @@ jobs:
           wget https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
           unzip android-ndk-r25b-linux.zip -d ~/
           export ANDROID_NDK_HOME="$HOME/android-ndk-r25b"
-          export PATH="$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export PATH="$PATH:$HOME/android-ndk-r25b/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
       - name: Add Rust Android targets
         run: rustup target add ${{ matrix.target }}
@@ -46,9 +46,9 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }} --features "download-binaries"
         env:
           # 关键：配置架构专用编译器路径 [8](@ref)
-          CC_aarch64_linux_android: "aarch64-linux-android-clang"
-          CC_armv7_linux_androideabi: "armv7a-linux-androideabi-clang"
-          CC_i686_linux_android: "i686-linux-android-clang"
+          CC_aarch64_linux_android: "$HOME/android-ndk-r25b/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-clang"
+          CC_armv7_linux_androideabi: "$HOME/android-ndk-r25b/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi-clang"
+          CC_i686_linux_android: "$HOME/android-ndk-r25b/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android-clang"
         
       - name: Package artifacts
         run: |
