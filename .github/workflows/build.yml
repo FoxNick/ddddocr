@@ -32,11 +32,13 @@ jobs:
       - uses: actions/checkout@v4
         
       - name: Set up Android NDK
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26b  # 指定稳定版本避免兼容问题 [8](@ref)
-        
+        run: |
+          # 安装 Android NDK（示例路径，需替换实际路径）
+          wget https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
+          unzip android-ndk-r25b-linux.zip -d ~/
+          export ANDROID_NDK_HOME="$HOME/android-ndk-r25b"
+          export PATH="$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
       - name: Add Rust Android targets
         run: rustup target add ${{ matrix.target }}
         
@@ -44,9 +46,9 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }} --features "download-binaries"
         env:
           # 关键：配置架构专用编译器路径 [8](@ref)
-          CC_aarch64_linux_android: "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-clang"
-          CC_armv7_linux_androideabi: "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi-clang"
-          CC_i686_linux_android: "${{ github.workspace }}/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android-clang"
+          CC_aarch64_linux_android: "aarch64-linux-android-clang"
+          CC_armv7_linux_androideabi: "armv7a-linux-androideabi-clang"
+          CC_i686_linux_android: "i686-linux-android-clang"
         
       - name: Package artifacts
         run: |
