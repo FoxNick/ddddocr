@@ -20,7 +20,7 @@ download-binaries = ["ort/download-binaries"]
 
 [dependencies]
 # 推理与数值计算，删除 Windows DML 以增加兼容性
-ort = { git = "https://github.com/86maid/ort.git", default-features = false, features = [
+ort = { git = "https://github.com/pykeio/ort.git", default-features = false, features = [
   "ndarray",
   "half",
   "copy-dylibs",
