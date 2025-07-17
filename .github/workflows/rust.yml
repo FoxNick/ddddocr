@@ -8,46 +8,71 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: 
-          - armeabi-v7a   # ARMv7 (兼容 armv7-linux-androideabi)
-          - arm64-v8a     # ARM64 (兼容 aarch64-linux-android)
-          - x86           # x86 (32位)
-          - x86_64        # x86_64
+        target:
+          - armeabi-v7a
+          - arm64-v8a
+          - x86
+          - x86_64
+
     steps:
       # 1. 检出代码
       - name: Checkout code
         uses: actions/checkout@v4
 
       # 2. 安装 Rust 和安卓目标
-      - name: Setup Rust
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source $HOME/.cargo/env
-          # 安装标准安卓目标（cargo-ndk 需此基础）
-          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+      - name: Setup Rust toolchain and targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
-      # 3. 安装 Android NDK（cargo-ndk 依赖）
+      # 3. 安装 Android NDK
       - name: Install Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r25b  # 推荐稳定版本[1](@ref)
+          ndk-version: r25b
 
-      # 4. 安装 cargo-ndk（核心步骤）
+      # 4. 安装 cargo-ndk
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      # 5. 编译安卓可执行文件
-      - name: Build Android executable
-        run: |
-          # 使用 cargo-ndk 自动处理 NDK 路径和工具链
-          cargo ndk -t ${{ matrix.target }} -o ./artifacts build --release --bins
+      # 5. 配置 ANDROID_NDK_HOME 环境变量
+      - name: Export ANDROID_NDK_HOME
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
-      # 6. 归档可执行文件
-      - name: Package artifacts
+      # 6. 构建并归档二进制
+      - name: Build and package Android executable
+        env:
+          # rustup/cargo 有时需要加载环境
+          CARGO_TERM_COLOR: always
         run: |
-          cd artifacts
-          tar -czvf ${{ matrix.target }}_binaries.tar.gz ${{ matrix.target }}/*
+          case "${{ matrix.target }}" in
+            armeabi-v7a)
+              TARGET=armv7-linux-androideabi
+              ;;
+            arm64-v8a)
+              TARGET=aarch64-linux-android
+              ;;
+            x86)
+              TARGET=i686-linux-android
+              ;;
+            x86_64)
+              TARGET=x86_64-linux-android
+              ;;
+            *)
+              echo "Unknown ABI"
+              exit 1
+              ;;
+          esac
+
+          mkdir -p artifacts/${{ matrix.target }}
+
+          # 构建所有二进制文件
+          cargo ndk -t $TARGET -o ./artifacts/${{ matrix.target }} build --release --bins
+
+          cd artifacts/${{ matrix.target }}
+          tar -czvf ../${{ matrix.target }}_binaries.tar.gz .
+          cd ../..
 
       # 7. 上传制品
       - name: Upload artifacts
